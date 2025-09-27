@@ -1,4 +1,4 @@
---// ===== ESP Script with Box + Item ESP + Small Transparent GUI =====
+--// ===== ESP Script with Box + Item ESP + Toggle GUI =====
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -7,10 +7,10 @@ local ESP_ENABLED = false
 local ESP_OBJECTS = {}
 local ESP_CONNS = {}
 
--- ลบ ESP ทั้งหมด
+-- ฟังก์ชันลบ ESP ทั้งหมด
 local function ClearESP()
-    for _, gui in pairs(ESP_OBJECTS) do
-        if gui and gui.Parent then gui:Destroy() end
+    for _, obj in pairs(ESP_OBJECTS) do
+        if obj and obj.Parent then obj:Destroy() end
     end
     ESP_OBJECTS = {}
     for _, c in pairs(ESP_CONNS) do
@@ -19,7 +19,7 @@ local function ClearESP()
     ESP_CONNS = {}
 end
 
--- ฟังก์ชันสร้างกรอบรอบตัว (Box)
+-- ฟังก์ชันสร้างกล่องรอบ Part
 local function CreateBox(targetPart, color)
     local box = Instance.new("BoxHandleAdornment")
     box.Adornee = targetPart
@@ -32,7 +32,7 @@ local function CreateBox(targetPart, color)
     return box
 end
 
--- สร้าง ESP ให้ Player
+-- ฟังก์ชันสร้าง ESP ให้ Player
 local function CreateESP(player)
     if player == LocalPlayer then return end
 
@@ -41,7 +41,7 @@ local function CreateESP(player)
         local head = char:WaitForChild("Head", 5)
         if not head then return end
 
-        -- Billboard แสดงชื่อ/HP/ระยะ
+        -- Billboard GUI
         local Billboard = Instance.new("BillboardGui")
         Billboard.Name = "ESP_"..player.Name
         Billboard.Size = UDim2.new(0,250,0,20)
@@ -59,11 +59,10 @@ local function CreateESP(player)
         Billboard.Parent = head
         ESP_OBJECTS[player.Name] = Billboard
 
-        -- กล่องรอบตัว
-        local charBox = {}
+        -- กล่องรอบตัวละคร
         for _, part in pairs(char:GetChildren()) do
             if part:IsA("BasePart") then
-                table.insert(charBox, CreateBox(part, Color3.fromRGB(0,255,0)))
+                ESP_OBJECTS[player.Name.."_"..part.Name] = CreateBox(part, Color3.fromRGB(0,255,0))
             end
         end
 
@@ -87,7 +86,7 @@ local function CreateESP(player)
                 Label.Text = ""
             end
 
-            -- อัปเดตของที่ถือ (Item ESP)
+            -- Item ESP
             local tool = player.Character:FindFirstChildOfClass("Tool")
             if tool and tool:FindFirstChild("Handle") then
                 if not ESP_OBJECTS[player.Name.."_Item"] then
@@ -107,7 +106,7 @@ local function CreateESP(player)
     player.CharacterAdded:Connect(SetupChar)
 end
 
--- เปิด ESP → ใส่ทุก Player
+-- ฟังก์ชันเปิด ESP
 local function EnableESP()
     ClearESP()
     for _, p in ipairs(Players:GetPlayers()) do
@@ -117,7 +116,7 @@ local function EnableESP()
     end
 end
 
--- Player ใหม่เข้า
+-- Player เข้าใหม่
 Players.PlayerAdded:Connect(function(p)
     if ESP_ENABLED then
         CreateESP(p)
@@ -126,33 +125,40 @@ end)
 
 -- Player ออก
 Players.PlayerRemoving:Connect(function(p)
+    -- ลบ Billboard
     if ESP_OBJECTS[p.Name] then
         ESP_OBJECTS[p.Name]:Destroy()
         ESP_OBJECTS[p.Name] = nil
     end
+    -- ลบ Item Box
     if ESP_OBJECTS[p.Name.."_Item"] then
         ESP_OBJECTS[p.Name.."_Item"]:Destroy()
         ESP_OBJECTS[p.Name.."_Item"] = nil
     end
+    -- ลบ Box ส่วนอื่น
+    for k, obj in pairs(ESP_OBJECTS) do
+        if string.find(k, p.Name.."_") and obj then
+            obj:Destroy()
+            ESP_OBJECTS[k] = nil
+        end
+    end
 end)
 
--- ===== GUI Toggle (เล็ก + โปร่งใส) =====
+-- ===== GUI Toggle =====
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 ScreenGui.Name = "ESP_Toggle"
 
 local Button = Instance.new("TextButton", ScreenGui)
-Button.Size = UDim2.new(0,100,0,30)  -- 👈 เล็กลง
+Button.Size = UDim2.new(0,100,0,30)
 Button.Position = UDim2.new(0.05,0,0.1,0)
 Button.Text = "วานลิต: ปิดอยู่"
 Button.BackgroundColor3 = Color3.fromRGB(30,30,30)
 Button.TextColor3 = Color3.fromRGB(255,255,255)
 Button.Font = Enum.Font.GothamBold
 Button.TextScaled = true
-Button.AutoButtonColor = true
 Button.BorderSizePixel = 0
-Button.BackgroundTransparency = 0.4  -- เริ่มต้นโปร่งใส
+Button.BackgroundTransparency = 0.4
 
--- โปร่งใสเมื่อไม่ hover
 Button.MouseEnter:Connect(function()
     Button.BackgroundTransparency = 0.1
 end)
@@ -166,7 +172,7 @@ Button.MouseButton1Click:Connect(function()
         Button.Text = "วานลิต : เปิดอยู่"
         EnableESP()
     else
-        Button.Text = "วานลิต : ปิดอยู่ "
+        Button.Text = "วานลิต : ปิดอยู่"
         ClearESP()
     end
 end)
